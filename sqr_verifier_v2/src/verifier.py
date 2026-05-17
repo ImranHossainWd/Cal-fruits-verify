@@ -1503,11 +1503,13 @@ def build_pages(image_paths: List[Path], txt_dir: Path, ocr: HybridOCR,
                 "form_code": code}
         # Possibly escalate to vision OCR
         vision = None
+        vision_error = None
         if ocr.should_escalate(tess, meta):
             try:
                 vision = ocr.vision.extract(str(img))
             except Exception as e:
-                vision = {"error": str(e)}
+                vision_error = str(e)
+                vision = {"error": vision_error}
         # Re-classify with vision data if available
         label, code = classify_page(text, vision)
         # Field extraction
@@ -1523,6 +1525,10 @@ def build_pages(image_paths: List[Path], txt_dir: Path, ocr: HybridOCR,
             text_len=len(text.strip()),
             ocr_backend_used="vision" if vision and not vision.get("error") else "tesseract",
         )
+        if vision_error:
+            rec.notes.append(f"Vision OCR error: {vision_error}")
+        if tess.get("error"):
+            rec.notes.append(f"Tesseract OCR error: {tess.get('error')}")
         # Photo heuristic
         if (rec.text_len < 80 and (rec.yellow_pct > 0.5 or rec.red_pct > 0.05)) or rec.fields.get("is_photo"):
             rec.is_likely_photo = True

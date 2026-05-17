@@ -149,6 +149,10 @@ def run_verification(job_id: str) -> None:
     job = update_job(job_id, status="running", started_at=utc_now(), message="Rendering and OCR are in progress")
     try:
         provider = job["vision_provider"]
+        if provider == "anthropic" and not os.environ.get("ANTHROPIC_API_KEY"):
+            raise RuntimeError("ANTHROPIC_API_KEY is not set in the Render environment.")
+        if provider == "openai" and not os.environ.get("OPENAI_API_KEY"):
+            raise RuntimeError("OPENAI_API_KEY is not set in the Render environment.")
         cache_path: Optional[str] = str(VISION_CACHE) if provider == "mock" and VISION_CACHE.exists() else None
         report = verify_pdf(
             pdf_path=job["input_path"],
@@ -286,3 +290,17 @@ async def rerun_job(background_tasks: BackgroundTasks, job_id: str) -> RedirectR
 @app.get("/healthz")
 async def healthz() -> Dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/diagnostics")
+async def diagnostics() -> Dict[str, Any]:
+    return {
+        "status": "ok",
+        "vision_provider": DEFAULT_VISION_PROVIDER,
+        "anthropic_key_present": bool(os.environ.get("ANTHROPIC_API_KEY")),
+        "openai_key_present": bool(os.environ.get("OPENAI_API_KEY")),
+        "tesseract_path": shutil.which("tesseract"),
+        "pdftoppm_path": shutil.which("pdftoppm"),
+        "data_dir": str(DATA_DIR),
+        "config_dir": str(CONFIG_DIR),
+    }

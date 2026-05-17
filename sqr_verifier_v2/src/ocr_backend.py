@@ -48,6 +48,7 @@ class TesseractBackend:
     def extract(self, image_path: str) -> Dict[str, Any]:
         """Return {'raw_text': str, 'confidence_estimate': float}."""
         out_base = str(Path(tempfile.gettempdir()) / f"_tess_out_{os.getpid()}")
+        error = None
         try:
             subprocess.run(
                 ["tesseract", image_path, out_base, "-l", "eng"],
@@ -56,6 +57,7 @@ class TesseractBackend:
             )
             text = Path(out_base + ".txt").read_text() if Path(out_base + ".txt").exists() else ""
         except Exception as e:
+            error = str(e)
             text = ""
         # Confidence: cheap heuristic = chars / words ratio + letter ratio
         n_chars = len(text.strip())
@@ -65,6 +67,7 @@ class TesseractBackend:
             "confidence_estimate": confidence,
             "char_count": n_chars,
             "backend": self.name,
+            "error": error,
         }
 
 
