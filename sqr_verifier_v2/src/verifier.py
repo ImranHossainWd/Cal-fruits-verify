@@ -813,6 +813,42 @@ def determine_primary_values(sp: SubPacket) -> None:
     if cases_counter: sp.cases           = cases_counter.most_common(1)[0][0]
 
 
+def _is_no_new_wo_xc_used(page: PageRecord) -> bool:
+    if page.form_code != "XC_USED":
+        return False
+    boxes = page.fields.get("checkbox_status") or page.fields.get("checkboxes") or []
+    for box in boxes:
+        item = str(box.get("item", "")).upper()
+        if "NO NEW WO" in item and box.get("checked"):
+            return True
+    all_fields = page.fields.get("all_fields") or {}
+    return bool(all_fields.get("no_new_wo_checkbox_marked"))
+
+
+def reconcile_no_new_wo_pages(sp: SubPacket) -> None:
+    """For Extra Cases USED forms, a checked "NO NEW WO#" means inherit identity."""
+    for p in sp.pages:
+        if not _is_no_new_wo_xc_used(p):
+            continue
+        changed = []
+        for key, value in (
+            ("wo", sp.primary_wo),
+            ("po", sp.primary_po),
+            ("customer", sp.primary_customer),
+            ("product", sp.primary_product),
+        ):
+            if value and p.fields.get(key) != value:
+                old = p.fields.get(key)
+                p.fields[key] = value
+                changed.append(f"{key}: {old!r} -> {value!r}")
+        if changed:
+            p.fields["is_backup_source"] = False
+            p.notes.append(
+                "NO NEW WO# checked on Extra Cases USED form; inherited "
+                "sub-packet identity (" + "; ".join(changed) + ")"
+            )
+
+
 def run_subpacket_checks(sp: SubPacket, config: Config,
                           customer_profile: Optional[CustomerProfile]) -> None:
     rules_cfg = config.rules
@@ -1745,7 +1781,7 @@ def assemble_pdf(report: PacketReport, summary_image_path: Path,
 # =============================================================================
 
 def write_issues_csv(report: PacketReport, out_csv: Path) -> None:
-    with out_csv.open("w", newline="") as f:
+    with out_csv.open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["#", "Status", "Sub-packet", "Check", "Detail",
                     "Pages", "Resolution (human)"])
@@ -1981,7 +2017,7 @@ def write_trace_json(report: PacketReport, out_json: Path) -> None:
             for p in report.pages
         ],
     }
-    out_json.write_text(json.dumps(data, indent=2, default=str))
+    out_json.write_text(json.dumps(data, indent=2, default=str), encoding="utf-8")
 
 
 # =============================================================================
@@ -2052,6 +2088,7 @@ def verify_pdf(pdf_path: str, out_dir: str,
             page_cust = p.fields.get("customer")
             if (page_cust
                     and page_cust != primary_cust
+                    and not _is_no_new_wo_xc_used(p)
                     and not p.fields.get("is_backup_source")):
                 p.fields["is_backup_source"] = True
                 p.notes.append(
@@ -2063,6 +2100,7 @@ def verify_pdf(pdf_path: str, out_dir: str,
     print(f"[{name}] Running rules per sub-packet...")
     for sp in sub_packets:
         determine_primary_values(sp)
+        reconcile_no_new_wo_pages(sp)
         run_subpacket_checks(sp, config, report.customer_profile)
 
     # 5b. Packet-level rules (forms shared across all WOs in the order)

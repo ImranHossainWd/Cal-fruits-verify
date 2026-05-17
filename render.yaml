@@ -10,7 +10,7 @@ services:
       - key: VISION_PROVIDER
         value: anthropic
       - key: ANTHROPIC_MODEL
-        value: claude-3-5-haiku-20241022
+        value: claude-opus-4-20250514
       - key: MAX_UPLOAD_MB
         value: "150"
       - key: SQR_DATA_DIR

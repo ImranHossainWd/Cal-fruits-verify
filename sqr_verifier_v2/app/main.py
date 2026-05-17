@@ -41,7 +41,7 @@ JOBS_FILE = DATA_DIR / "jobs.json"
 CONFIG_DIR = Path(os.environ.get("SQR_CONFIG_DIR", ROOT / "config")).resolve()
 VISION_CACHE = Path(os.environ.get("VISION_CACHE_PATH", ROOT / "cache" / "vision_cache.json")).resolve()
 DEFAULT_VISION_PROVIDER = os.environ.get("VISION_PROVIDER", "mock").strip().lower() or "mock"
-ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-3-5-haiku-20241022")
+ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-20250514")
 MAX_UPLOAD_MB = int(os.environ.get("MAX_UPLOAD_MB", "150"))
 PROVIDERS = ["anthropic", "openai", "mock"]
 

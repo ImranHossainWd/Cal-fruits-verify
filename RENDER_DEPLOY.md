@@ -18,7 +18,8 @@ Set these in Render:
 ```text
 VISION_PROVIDER=anthropic
 ANTHROPIC_API_KEY=your_api_key
-SQR_DATA_DIR=/var/data/sqr-verifier
+ANTHROPIC_MODEL=claude-opus-4-20250514
+SQR_DATA_DIR=/tmp/sqr-verifier
 MAX_UPLOAD_MB=150
 ```
 
