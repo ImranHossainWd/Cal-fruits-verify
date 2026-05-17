@@ -294,12 +294,8 @@ async def rerun_job(background_tasks: BackgroundTasks, job_id: str) -> RedirectR
     job = get_job(job_id)
     out_dir = Path(job["output_dir"])
     if out_dir.exists():
-        for path in out_dir.iterdir():
-            if path.name != "_work":
-                if path.is_dir():
-                    shutil.rmtree(path)
-                else:
-                    path.unlink(missing_ok=True)
+        shutil.rmtree(out_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
     update_job(job_id, status="queued", message="Queued for re-run", summary=None)
     background_tasks.add_task(run_verification, job_id)
     return RedirectResponse(url=f"/jobs/{job_id}", status_code=303)

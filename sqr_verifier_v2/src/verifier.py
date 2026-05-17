@@ -1438,62 +1438,47 @@ def run_subpacket_checks(sp: SubPacket, config: Config,
 
 def render_pdf(pdf_path: Path, out_dir: Path, dpi: int = 150) -> List[Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
-    base = out_dir / "p"
-    n_total = 0
-    if shutil.which("pdfinfo"):
-        info = subprocess.run(["pdfinfo", str(pdf_path)], capture_output=True, text=True)
-        for line in info.stdout.splitlines():
-            if line.startswith("Pages:"):
-                n_total = int(line.split()[1])
-                break
-    if n_total == 0:
+    def _valid_png(path: Path) -> bool:
         try:
-            from pypdf import PdfReader
-            n_total = len(PdfReader(str(pdf_path)).pages)
+            with Image.open(path) as img:
+                img.verify()
+            return path.stat().st_size > 0
         except Exception:
-            n_total = 0
-    # Skip render if all pages already exist
-    existing = sorted(out_dir.glob("p-*.png"))
-    if len(existing) >= n_total and n_total > 0:
-        return existing
-    if shutil.which("pdftoppm") and n_total > 0:
-        # Render in batches with their own timeouts so a slow batch doesn't kill the whole run
-        BATCH = 20
-        for start in range(1, n_total + 1, BATCH):
-            # Skip a batch if every page in it already exists
-            end = min(start + BATCH - 1, n_total)
-            if all((out_dir / f"p-{p:02d}.png").exists() for p in range(start, end + 1)):
-                continue
-            try:
-                subprocess.run(
-                    ["pdftoppm", "-r", str(dpi), "-png",
-                     "-f", str(start), "-l", str(end),
-                     str(pdf_path), str(base)],
-                    check=False, timeout=35)
-            except subprocess.TimeoutExpired:
-                pass
-    pages = sorted([p for p in out_dir.glob("p-*.png")])
-    if pages:
-        return pages
+            return False
 
-    # Portable fallback for hosts without Poppler installed. PyMuPDF is a Python
-    # wheel, so this keeps local and free-tier deployments testable.
+    # PyMuPDF is deterministic in Render's free environment and avoids partial
+    # PNGs occasionally produced by timed-out Poppler batch renders.
     try:
         import fitz  # type: ignore
-    except ImportError as exc:
-        raise RuntimeError(
-            "PDF rendering requires Poppler's pdftoppm or the pymupdf package."
-        ) from exc
-    zoom = dpi / 72
-    matrix = fitz.Matrix(zoom, zoom)
-    with fitz.open(str(pdf_path)) as doc:
-        for idx, page in enumerate(doc, start=1):
-            out_path = out_dir / f"p-{idx:02d}.png"
-            if out_path.exists():
-                continue
-            pix = page.get_pixmap(matrix=matrix, alpha=False)
-            pix.save(str(out_path))
-    return sorted([p for p in out_dir.glob("p-*.png")])
+        zoom = dpi / 72
+        matrix = fitz.Matrix(zoom, zoom)
+        with fitz.open(str(pdf_path)) as doc:
+            for idx, page in enumerate(doc, start=1):
+                out_path = out_dir / f"p-{idx:02d}.png"
+                if _valid_png(out_path):
+                    continue
+                tmp_path = out_path.with_suffix(".tmp.png")
+                pix = page.get_pixmap(matrix=matrix, alpha=False)
+                pix.save(str(tmp_path))
+                tmp_path.replace(out_path)
+        pages = sorted(out_dir.glob("p-*.png"))
+        bad = [p for p in pages if not _valid_png(p)]
+        if bad:
+            raise RuntimeError("Rendered invalid PNG page(s): " + ", ".join(p.name for p in bad))
+        return pages
+    except ImportError:
+        pass
+
+    if not shutil.which("pdftoppm"):
+        raise RuntimeError("PDF rendering requires pymupdf or Poppler's pdftoppm.")
+    base = out_dir / "p"
+    subprocess.run(["pdftoppm", "-r", str(dpi), "-png", str(pdf_path), str(base)],
+                   check=True, timeout=180)
+    pages = sorted(out_dir.glob("p-*.png"))
+    bad = [p for p in pages if not _valid_png(p)]
+    if bad:
+        raise RuntimeError("Poppler rendered invalid PNG page(s): " + ", ".join(p.name for p in bad))
+    return pages
 
 
 def detect_markings(image_path: str) -> Dict[str, float]:
