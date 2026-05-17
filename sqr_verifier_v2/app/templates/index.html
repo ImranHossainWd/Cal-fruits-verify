@@ -17,10 +17,9 @@
     <label>
       Vision OCR
       <select name="vision_provider">
-        <option value="{{ default_provider }}" selected>{{ default_provider }}</option>
-        <option value="anthropic">anthropic</option>
-        <option value="openai">openai</option>
-        <option value="mock">mock</option>
+        {% for provider in providers %}
+          <option value="{{ provider }}" {% if provider == default_provider %}selected{% endif %}>{{ provider }}</option>
+        {% endfor %}
       </select>
     </label>
     <button type="submit">Run Verification</button>

@@ -145,9 +145,9 @@ class AnthropicVisionBackend:
     """
     name = "anthropic_vision"
 
-    def __init__(self, model: str = "claude-3-5-sonnet-20241022",
+    def __init__(self, model: str = "claude-3-5-haiku-20241022",
                  api_key: Optional[str] = None):
-        self.model = model
+        self.model = os.environ.get("ANTHROPIC_MODEL", model)
         self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
 
     def extract(self, image_path: str) -> Dict[str, Any]:
@@ -166,7 +166,7 @@ class AnthropicVisionBackend:
 
         msg = client.messages.create(
             model=self.model,
-            max_tokens=2000,
+            max_tokens=4096,
             messages=[{
                 "role": "user",
                 "content": [

@@ -33,6 +33,7 @@ from verifier import verify_pdf  # noqa: E402
 
 
 APP_NAME = "California Fruit Sorting Quality Verifier"
+APP_VERSION = "2026-05-17-vision-diagnostics"
 DATA_DIR = Path(os.environ.get("SQR_DATA_DIR", ROOT / "web_data")).resolve()
 UPLOAD_DIR = DATA_DIR / "uploads"
 OUTPUT_DIR = DATA_DIR / "outputs"
@@ -40,7 +41,9 @@ JOBS_FILE = DATA_DIR / "jobs.json"
 CONFIG_DIR = Path(os.environ.get("SQR_CONFIG_DIR", ROOT / "config")).resolve()
 VISION_CACHE = Path(os.environ.get("VISION_CACHE_PATH", ROOT / "cache" / "vision_cache.json")).resolve()
 DEFAULT_VISION_PROVIDER = os.environ.get("VISION_PROVIDER", "mock").strip().lower() or "mock"
+ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-3-5-haiku-20241022")
 MAX_UPLOAD_MB = int(os.environ.get("MAX_UPLOAD_MB", "150"))
+PROVIDERS = ["anthropic", "openai", "mock"]
 
 for directory in (DATA_DIR, UPLOAD_DIR, OUTPUT_DIR):
     directory.mkdir(parents=True, exist_ok=True)
@@ -162,6 +165,20 @@ def run_verification(job_id: str) -> None:
             vision_cache_path=cache_path,
             packet_name=job["packet_name"],
         )
+        vision_errors = [
+            note
+            for page in report.pages
+            for note in page.notes
+            if note.startswith("Vision OCR error:")
+        ]
+        n_vision = sum(1 for page in report.pages if page.ocr_backend_used == "vision")
+        if provider in {"anthropic", "openai"} and vision_errors:
+            raise RuntimeError("Vision OCR failed. First error: " + vision_errors[0])
+        if provider in {"anthropic", "openai"} and n_vision == 0:
+            raise RuntimeError(
+                f"{provider} vision OCR did not process any pages. "
+                "Check the API key, model, and Render logs."
+            )
         summary = summarize_report(report)
         update_job(
             job_id,
@@ -190,6 +207,7 @@ async def index(request: Request) -> HTMLResponse:
             "jobs": jobs,
             "app_name": APP_NAME,
             "default_provider": DEFAULT_VISION_PROVIDER,
+            "providers": PROVIDERS,
             "max_upload_mb": MAX_UPLOAD_MB,
         },
     )
@@ -296,7 +314,9 @@ async def healthz() -> Dict[str, str]:
 async def diagnostics() -> Dict[str, Any]:
     return {
         "status": "ok",
+        "app_version": APP_VERSION,
         "vision_provider": DEFAULT_VISION_PROVIDER,
+        "anthropic_model": ANTHROPIC_MODEL,
         "anthropic_key_present": bool(os.environ.get("ANTHROPIC_API_KEY")),
         "openai_key_present": bool(os.environ.get("OPENAI_API_KEY")),
         "tesseract_path": shutil.which("tesseract"),
@@ -304,3 +324,25 @@ async def diagnostics() -> Dict[str, Any]:
         "data_dir": str(DATA_DIR),
         "config_dir": str(CONFIG_DIR),
     }
+
+
+@app.get("/diagnostics/anthropic")
+async def diagnostics_anthropic() -> Dict[str, Any]:
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY is not set")
+    try:
+        import anthropic
+
+        client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+        msg = client.messages.create(
+            model=ANTHROPIC_MODEL,
+            max_tokens=16,
+            messages=[{"role": "user", "content": "Reply with exactly: ok"}],
+        )
+        return {
+            "status": "ok",
+            "model": ANTHROPIC_MODEL,
+            "response": msg.content[0].text,
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
