@@ -90,9 +90,9 @@ class Config:
 
     @classmethod
     def load(cls, config_dir: Path) -> "Config":
-        cust_data = yaml.safe_load((config_dir / "customers.yaml").read_text())
-        specs_data = yaml.safe_load((config_dir / "specs.yaml").read_text())
-        rules_data = yaml.safe_load((config_dir / "rules.yaml").read_text())
+        cust_data = yaml.safe_load((config_dir / "customers.yaml").read_text(encoding="utf-8"))
+        specs_data = yaml.safe_load((config_dir / "specs.yaml").read_text(encoding="utf-8"))
+        rules_data = yaml.safe_load((config_dir / "rules.yaml").read_text(encoding="utf-8"))
 
         customers = [
             CustomerProfile(

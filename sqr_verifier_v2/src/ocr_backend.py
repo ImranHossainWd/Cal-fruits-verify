@@ -328,12 +328,17 @@ class HybridOCR:
         raise ValueError(f"unknown vision_provider: {p}")
 
     def should_escalate(self, tess_result: Dict, page_meta: Dict) -> bool:
+        printed_form_codes = {"INV", "PO", "PROD_REQ", "COA", "FPP", "BOL", "SHIP_LABEL"}
+        form_code = page_meta.get("form_code")
+        char_count = tess_result.get("char_count", 0)
         if tess_result.get("char_count", 0) < self.config.vision_trigger_min_chars:
             return True
+        if form_code in printed_form_codes:
+            return False
         if (page_meta.get("yellow_pct", 0) + page_meta.get("red_pct", 0)
                 > self.config.vision_trigger_marking_pct):
             return True
-        if page_meta.get("form_code") in self.config.vision_trigger_form_codes:
+        if form_code in self.config.vision_trigger_form_codes:
             return True
         return False
 

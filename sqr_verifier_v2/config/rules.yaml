@@ -1,20 +1,20 @@
-# California Fruit Inc — Verification Rules Toggles
+﻿# California Fruit Inc â€” Verification Rules Toggles
 # Turn rules on/off without code changes.
 
 rules:
   identity_match:                # WO/PO/Customer/Product cross-reference
     enabled: true
     severity: fail
-  numerical_reconciliation:      # Bag×weight, sort-out totals, packet weight
+  numerical_reconciliation:      # BagÃ—weight, sort-out totals, packet weight
     enabled: true
     severity: fail
   initials_signatures:           # Verification + 2nd Verification + per-form initials
     enabled: true
-    severity: info               # Hard to detect via OCR — "info" until vision OCR is enabled
+    severity: info               # Hard to detect via OCR â€” "info" until vision OCR is enabled
   defect_photos:                 # Each listed defect has a matching bag photo
     enabled: true
     severity: info
-  bin_pull_ticket_recon:         # Bin tags ↔ Pull Ticket rows
+  bin_pull_ticket_recon:         # Bin tags â†” Pull Ticket rows
     enabled: true
     severity: fail
   spec_validity:                 # Moisture/sulfur/aflatoxin within customer spec
@@ -58,12 +58,12 @@ rules:
       CMD:        [wo, dates, metal_detector_findings, initials_present]
       PRETEST:    [wo, customer, product, dates, moisture_pct, sulfur_ppm]
 
-  cross_reference_matrix:        # Build full field × page matrix as Excel output
+  cross_reference_matrix:        # Build full field Ã— page matrix as Excel output
     enabled: true                # Required for the audit trail
     severity: info               # Informational; the matrix is documentation, not pass/fail
     cite_sources_in_checks: true # Every check message must list the pages it cross-referenced
     auto_discover_fields: true   # Auto-pick up any new scalar field returned by vision OCR
-                                 #   — no YAML edit needed when packets carry new info
+                                 #   â€” no YAML edit needed when packets carry new info
     # Fields below are the KNOWN/CANONICAL set rendered in this fixed order at
     # the top of the matrix. Any field returned by vision OCR (or set anywhere
     # on a PageRecord) that is not in this list is auto-appended below them
@@ -92,7 +92,7 @@ rules:
 # OCR backend selection
 # tesseract: free, fast, bad on handwriting
 # vision: API call to a vision-capable LLM (Anthropic Claude / OpenAI GPT-4V / etc.)
-#         — required for production-quality handwriting recognition.
+#         â€” required for production-quality handwriting recognition.
 ocr:
   primary_backend: tesseract
   handwriting_backend: vision
@@ -107,22 +107,17 @@ ocr:
     - SQR_CHK
     - SQR_XC
     - SQR_FULL       # Backup-source SQRs often have order-specific re-test data
-                     # in highlighted columns — must use vision OCR to capture
+                     # in highlighted columns â€” must use vision OCR to capture
     - XC_USED
     - STAMP
     - BIN_TAG
     - TRAILER
     - SORT_OUT
     - CONTAINER
-    - COA            # Handwritten WO# on COAs sometimes confuses Tesseract
-    - FPP            # Final Packed Product Sheet has handwritten WO# / dates
     - LMD
     - CMD
     - LAB
-    - PO             # Customer POs — for completeness coverage
-    - INV            # Invoices — for completeness coverage
-    - PROD_REQ       # Production Requests — handwritten product/qty notes
-
+    - PRETEST
 # Output options
 output:
   produce_marked_pdf: true
@@ -130,7 +125,7 @@ output:
   produce_issues_csv: true
   produce_trace_json: true
   ai_palette:
-    pass_color: "#288c3c"          # green ✓
-    flag_color: "#eb8219"          # orange ✗ — distinct from human reviewer's red
-    info_color: "#3c6eb4"          # blue ⓘ
-    highlight_color: "#fff082"     # pale yellow — distinct from human reviewer's bright highlighter
+    pass_color: "#288c3c"          # green âœ“
+    flag_color: "#eb8219"          # orange âœ— â€” distinct from human reviewer's red
+    info_color: "#3c6eb4"          # blue â“˜
+    highlight_color: "#fff082"     # pale yellow â€” distinct from human reviewer's bright highlighter

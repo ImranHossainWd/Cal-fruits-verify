@@ -20,6 +20,6 @@ ANTHROPIC_API_KEY=your_claude_api_key
 
 The free tier is configured in `render.yaml`. Uploaded/generated files are stored in `/tmp/sqr-verifier`, which is temporary on Render free tier.
 
-The default Anthropic vision model is `claude-opus-4-20250514`, which was the most accurate model in testing for the sample packet. You can later change `ANTHROPIC_MODEL` in Render.
+The default Anthropic vision model is `claude-sonnet-4-20250514` to keep verification cost reasonable. You can switch `ANTHROPIC_MODEL` to `claude-opus-4-20250514` for difficult packets.
 
 See `RENDER_DEPLOY.md` for more details.
