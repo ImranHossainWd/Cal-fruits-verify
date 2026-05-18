@@ -128,6 +128,7 @@ def summarize_report(report: Any) -> Dict[str, Any]:
             for c in report.all_checks
             if c.status == "fail"
         ],
+        "warnings": [],
     }
 
 
@@ -172,19 +173,25 @@ def run_verification(job_id: str) -> None:
             if note.startswith("Vision OCR error:")
         ]
         n_vision = sum(1 for page in report.pages if page.ocr_backend_used == "vision")
-        if provider in {"anthropic", "openai"} and vision_errors:
-            raise RuntimeError("Vision OCR failed. First error: " + vision_errors[0])
-        if provider in {"anthropic", "openai"} and n_vision == 0:
-            raise RuntimeError(
-                f"{provider} vision OCR did not process any pages. "
-                "Check the API key, model, and Render logs."
-            )
         summary = summarize_report(report)
+        warnings = []
+        if provider in {"anthropic", "openai"} and vision_errors:
+            warnings.append(
+                "Vision OCR failed on one or more pages. The report was generated "
+                "from Tesseract/printed-text OCR where possible. First vision error: "
+                + vision_errors[0]
+            )
+        if provider in {"anthropic", "openai"} and n_vision == 0:
+            warnings.append(
+                f"{provider} vision OCR did not process any pages. This is a partial "
+                "Tesseract-only report and may miss handwriting."
+            )
+        summary["warnings"] = warnings
         update_job(
             job_id,
             status="complete",
             completed_at=utc_now(),
-            message="Verification complete",
+            message="Verification complete with OCR warnings" if warnings else "Verification complete",
             summary=summary,
         )
     except Exception as exc:  # noqa: BLE001 - show useful operator error on job page
