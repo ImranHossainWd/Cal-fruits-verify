@@ -145,7 +145,7 @@ class AnthropicVisionBackend:
     """
     name = "anthropic_vision"
 
-    def __init__(self, model: str = "claude-opus-4-20250514",
+    def __init__(self, model: str = "claude-sonnet-4-20250514",
                  api_key: Optional[str] = None):
         self.model = os.environ.get("ANTHROPIC_MODEL", model)
         self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
